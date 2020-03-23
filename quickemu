@@ -309,7 +309,11 @@ function vm_boot() {
   echo " - Display:  ${OUTPUT^^}"
 
   # Set the hostname of the VM
-  local NET="user,hostname=${VMNAME}"
+  local VM_HOSTNAME=${hostname}
+  if [ -z ${VM_HOSTNAME} ]; then
+    local VM_HOSTNAME="${VMNAME// /}"
+    local NET="user,hostname=${VM_HOSTNAME}"
+  fi
 
   # If smbd is available, export $HOME to the guest via samba
   if [ -e "${VIRGIL_PATH}/usr/sbin/smbd" ]; then
@@ -336,7 +340,7 @@ function vm_boot() {
   # Boot the iso image
   if [ "${boot}" == "efi" ] || [ "${boot}" == "uefi" ]; then
     ${QEMU} \
-      -name ${VMNAME},process=${VMNAME} \
+      -name "${VMNAME}",process="${VMNAME}" \
       -enable-kvm -machine q35 ${GUEST_TWEAKS} \
       ${CPU} -smp ${CORES_VM} \
       -m ${RAM_VM} -device virtio-balloon \
@@ -362,7 +366,7 @@ function vm_boot() {
       "${@}"
   else
     ${QEMU} \
-      -name ${VMNAME},process=${VMNAME} \
+      -name "${VMNAME}",process="${VMNAME}" \
       -enable-kvm -machine q35 ${GUEST_TWEAKS} \
       ${CPU} -smp ${CORES_VM} \
       -m ${RAM_VM} -device virtio-balloon \
@@ -399,7 +403,6 @@ function usage() {
   echo "  --snapshot delete <tag> : Delete a snapshot."
   echo "  --snapshot info         : Show disk/snapshot info."
   echo "  --status-quo            : Do not commit any changes to disk/snapshot."
-  exit 1
 }
 
 # Lowercase variables are used in the VM config file only
@@ -458,10 +461,12 @@ while [ $# -gt 0 ]; do
       shift
       shift;;
     -h|--h|-help|--help)
-      usage;;
+      usage
+      exit 0;;
     *)
       echo "ERROR! \"${1}\" is not a supported parameter."
-      usage;;
+      usage
+      exit 1;;
   esac
 done
 
@@ -481,6 +486,7 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
 else
   echo "ERROR! Virtual machine configuration not found."
   usage
+  exit 1
 fi
 
 if [ ${DELETE} -eq 1 ]; then
@@ -507,7 +513,8 @@ if [ -n "${SNAPSHOT_ACTION}" ]; then
       exit;;
     *)
       echo "ERROR! \"${SNAPSHOT_ACTION}\" is not a supported snapshot action."
-      usage;;
+      usage
+      exit 1;;
   esac
 fi
 
