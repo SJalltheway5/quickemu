@@ -86,6 +86,36 @@ function get_port() {
     done
 }
 
+# Automatically create .desktop launcher after VM's first successful(?) boot (WIP)
+# Uses "Pretty" name from .conf, otherwise falls back to "Ugly" name
+# TO DO: Implement force creation of .desktop launcher (FORCE_DESKTOP_FILE=1)
+#        Maybe --vm should have its own separate functions like --snapshot does?
+function mk_desktop_file() {
+  [ -z ${XDG_DATA_HOME} ] && local XDG_DATA_HOME=${HOME}/.local/share
+  local VMNAME_P=${vmname}
+  local VMNAME_U="$(echo ${VM} | rev | cut -d'/' -f1 | cut -d'.' -f2- | rev)"
+  local VMNAME_U=${VMNAME_U// /}
+  [ -z "${VMNAME_P}" ] && local VMNAME_P="${VMNAME_U}"
+  local DESKTOP_FILE="${XDG_DATA_HOME}/applications/${VMNAME_U}".desktop
+  # Get absolute paths of LAUNCHER and VM for Exec=
+  local LAUNCHER_ABSPTH="$(cd "${0%/*}" && pwd)/${LAUNCHER}"
+  local VM_ABSPTH="$(cd "$(dirname "${VM}")" && pwd)/${VM}"
+  if [ ! -f "${DESKTOP_FILE}" ] || [ "${FORCE_DESKTOP_FILE}" = "1" ]; then
+    echo "[Desktop Entry]" > "${DESKTOP_FILE}"
+    echo "Version=1.0" >> "${DESKTOP_FILE}"
+    echo "Type=Application" >> "${DESKTOP_FILE}"
+    echo "Name=${VMNAME_P}" >> "${DESKTOP_FILE}"
+    echo "Comment=Quickemu VM" >> "${DESKTOP_FILE}"
+    echo "Exec='${LAUNCHER_ABSPTH}' --vm '${VM_ABSPTH}'" >> "${DESKTOP_FILE}"
+    # Category for this?
+    echo "Categories=;" >> "${DESKTOP_FILE}"
+    # Need to sort out setting a proper icon
+    echo "Icon=application-default-icon" >> "${DESKTOP_FILE}"
+    echo "Terminal=false" >> "${DESKTOP_FILE}"
+    echo "StartupNotify=false" >> "${DESKTOP_FILE}"
+  fi
+}
+
 enable_usb_passthrough() {
   local DEVICE=""
   local USB_BUS=""
@@ -423,7 +453,7 @@ cores=""
 xres=""
 yres=""
 hostname=""
-#vmname=""
+vmname=""
 
 DELETE=0
 ENABLE_EFI=0
@@ -523,4 +553,4 @@ if [ -n "${SNAPSHOT_ACTION}" ]; then
   esac
 fi
 
-vm_boot
+vm_boot && mk_desktop_file
