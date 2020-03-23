@@ -238,42 +238,52 @@ function vm_boot() {
     echo " - Drivers:  ${driver_iso}"
   fi
 
-  local CORES_VM="1"
-  local CORES_HOST=$(nproc --all)
-  if [ ${CORES_HOST} -ge 8 ]; then
-    CORES_VM="4"
-  elif [ ${CORES_HOST} -ge 4 ]; then
-    CORES_VM="2"
+  local CORES_VM=${cores}
+  if [ -z ${CORES_VM} ]; then
+    local CORES_VM="1"
+    local CORES_HOST=$(nproc --all)
+    if [ ${CORES_HOST} -ge 8 ]; then
+      CORES_VM="4"
+    elif [ ${CORES_HOST} -ge 4 ]; then
+      CORES_VM="2"
+    fi
   fi
   echo " - CPU:      ${CORES_VM} Core(s)"
 
-  local RAM_VM="2G"
-  local RAM_HOST=$(free --mega -h | grep Mem | cut -d':' -f2 | cut -d'G' -f1 | sed 's/ //g')
-  #Round up - https://github.com/wimpysworld/quickemu/issues/11
-  RAM_HOST=$(printf '%.*f\n' 0 ${RAM_HOST})
-  if [ ${RAM_HOST} -ge 64 ]; then
-    RAM_VM="4G"
-  elif [ ${RAM_HOST} -ge 16 ]; then
-    RAM_VM="3G"
+  local RAM_VM=${ram}
+  if [ -z ${RAM_VM} ]; then
+    local RAM_VM="2G"
+    local RAM_HOST=$(free --mega -h | grep Mem | cut -d':' -f2 | cut -d'G' -f1 | sed 's/ //g')
+    #Round up - https://github.com/wimpysworld/quickemu/issues/11
+    RAM_HOST=$(printf '%.*f\n' 0 ${RAM_HOST})
+    if [ ${RAM_HOST} -ge 64 ]; then
+      RAM_VM="4G"
+    elif [ ${RAM_HOST} -ge 16 ]; then
+      RAM_VM="3G"
+    fi
   fi
   echo " - RAM:      ${RAM_VM}"
 
-  local X_RES=1152
-  local Y_RES=648
-  if [ "${XDG_SESSION_TYPE}" == "x11" ]; then
-    local LOWEST_WIDTH=$(xrandr --listmonitors | grep -v Monitors | cut -d' ' -f4 | cut -d'/' -f1 | sort | head -n1)
-    if [ ${LOWEST_WIDTH} -ge 3840 ]; then
-      X_RES=3200
-      Y_RES=1800
-    elif [ ${LOWEST_WIDTH} -ge 2560 ]; then
-      X_RES=2048
-      Y_RES=1152
-    elif [ ${LOWEST_WIDTH} -ge 1920 ]; then
-      X_RES=1664
-      Y_RES=936
-    elif [ ${LOWEST_WIDTH} -ge 1280 ]; then
-      X_RES=1152
-      Y_RES=648
+  local X_RES=${xres}
+  local Y_RES=${yres}
+  if [ -z "${X_RES}" ] || [ -z "${Y_RES}" ]; then
+    local X_RES=1152
+    local Y_RES=648
+    if [ "${XDG_SESSION_TYPE}" == "x11" ]; then
+      local LOWEST_WIDTH=$(xrandr --listmonitors | grep -v Monitors | cut -d' ' -f4 | cut -d'/' -f1 | sort | head -n1)
+      if [ ${LOWEST_WIDTH} -ge 3840 ]; then
+        X_RES=3200
+        Y_RES=1800
+      elif [ ${LOWEST_WIDTH} -ge 2560 ]; then
+        X_RES=2048
+        Y_RES=1152
+      elif [ ${LOWEST_WIDTH} -ge 1920 ]; then
+        X_RES=1664
+        Y_RES=936
+      elif [ ${LOWEST_WIDTH} -ge 1280 ]; then
+        X_RES=1152
+        Y_RES=648
+      fi
     fi
   fi
 
@@ -400,6 +410,12 @@ driver_iso=""
 disk_img=""
 disk="64G"
 usb_devices=()
+ram=""
+cores=""
+xres=""
+yres=""
+hostname=""
+#vmname=""
 
 DELETE=0
 ENABLE_EFI=0
