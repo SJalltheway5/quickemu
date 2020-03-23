@@ -225,6 +225,11 @@ function vm_boot() {
     fi
   fi
 
+  # Grab the file extension from the disk image to allow more than qcow2.
+  # ( Probably should limit this from allowing ANY file extension.
+  # Maybe limit to a list of ones that qemu accepts? )
+  local DISK_TYPE=$(echo "${disk_img}" | rev | cut -d'.' -f1 | rev)
+
   # Has the status quo been requested?
   if [ "${STATUS_QUO}" == "-snapshot" ] &&  [ -z "${iso}" ]; then
     echo "             Existing disk state will be preserved, no writes will be committed."
@@ -348,7 +353,7 @@ function vm_boot() {
       -drive if=pflash,format=raw,file="${EFI_VARS}" \
       -drive media=cdrom,index=0,file="${iso}" \
       -drive media=cdrom,index=1,file="${driver_iso}" \
-      -drive if=none,id=drive0,cache=directsync,aio=native,format=qcow2,file="${disk_img}" \
+      -drive if=none,id=drive0,cache=directsync,aio=native,format=${DISK_TYPE},file="${disk_img}" \
       -device virtio-blk-pci,drive=drive0,scsi=off ${STATUS_QUO} \
       ${VIDEO} -display ${OUTPUT},gl=${GL}${OUTPUT_EXTRA} \
       -device qemu-xhci,id=xhci,p2=8,p3=8 -device usb-kbd,bus=xhci.0 -device usb-tablet,bus=xhci.0 ${USB_PASSTHROUGH} \
@@ -372,7 +377,7 @@ function vm_boot() {
       -m ${RAM_VM} -device virtio-balloon \
       -drive media=cdrom,index=0,file="${iso}" \
       -drive media=cdrom,index=1,file="${driver_iso}" \
-      -drive if=none,id=drive0,cache=directsync,aio=native,format=qcow2,file="${disk_img}" \
+      -drive if=none,id=drive0,cache=directsync,aio=native,format=${DISK_TYPE},file="${disk_img}" \
       -device virtio-blk-pci,drive=drive0,scsi=off ${STATUS_QUO} \
       ${VIDEO} -display ${OUTPUT},gl=${GL}${OUTPUT_EXTRA} \
       -device qemu-xhci,id=xhci,p2=8,p3=8 -device usb-kbd,bus=xhci.0 -device usb-tablet,bus=xhci.0 ${USB_PASSTHROUGH} \
