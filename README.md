@@ -163,7 +163,7 @@ You can also pass optional parameters
   - [x] Improve stdout presentation
   - [x] Make disk image optionally size configurable
   - [x] Improve snapshot management
-  - [ ] Create desktop launcher for a VM
+  - [x] Create desktop launcher for a VM (work in progress)
   - [x] Fix Virgil 3D on EFI boot
   - [x] Get QEMU `-audiodev` working for audio input, something like:
   - [x] Add Windows support
