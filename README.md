@@ -28,7 +28,7 @@ where I explain some of my motivations for creating this script.
 Clone this repository:
 
 ```
-git clone https://github.com/wimpysworld/quickemu.git
+git clone https://github.com/SJalltheway5/quickemu.git
 ```
 
 Install the `qemu-virgil` snap. You can find details about how to install snapd
@@ -42,7 +42,7 @@ snap connect qemu-virgil:removable-media
 
 ## Usage
 
-### Linux
+### Linux VM
 
   * Download a .iso image of a Linux distribution
   * Create a VM configuration file; for example `ubuntu.conf`
@@ -85,7 +85,7 @@ Starting /media/martin/Quickemu/ubuntu-focal-desktop.conf
 
   * Complete the installation as normal.
 
-### Windows 10
+### Windows 10 VM
 
 You can use `quickemu` to run a Windows 10 virtual machine.
 
@@ -164,6 +164,8 @@ You can also pass optional parameters
   - [x] Make disk image optionally size configurable
   - [x] Improve snapshot management
   - [x] Create desktop launcher for a VM (work in progress)
+  - [x] Interactively create a new .conf file (work in progress)
+  - [ ] Update README about aforementioned .conf file creation
   - [x] Fix Virgil 3D on EFI boot
   - [x] Get QEMU `-audiodev` working for audio input, something like:
   - [x] Add Windows support
