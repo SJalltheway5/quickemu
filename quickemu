@@ -600,8 +600,7 @@ done
 # Check we have qemu-virgil available
 if [ ! -e "${QEMU}" ] && [ ! -e "${QEMU_IMG}" ]; then
   echo "ERROR! qemu-virgil not found. Please install the qemu-virgil snap."
-  echo "       https://snapcraft.io/qemu-virgil or run:"
-  echo "       snap install qemu-virgil"
+  echo "       https://snapcraft.io/qemu-virgil"
   exit 1
 fi
 
