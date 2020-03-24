@@ -114,6 +114,116 @@ function mk_desktop_file() {
   fi
 }
 
+# Interactively create new .conf if VM doesn't already exist (WIP)
+# TODO: Better tab completion?
+#       Clean this crap up.
+function mk_conf() {
+  echo "  Ctrl-C to abort"
+  echo
+
+  # VM name
+  local VMNAME_P
+  echo -n "VM name: "
+  read VMNAME_P
+
+  # Guest OS type
+  local GUEST_OS
+  while [ "${GUEST_OS}" != "linux" ] && [ "${GUEST_OS}" != "windows" ]; do
+    echo -n "Guest OS type (linux|windows): "
+    # Really hacky tab completion
+    [ -d /tmp/quickemu/GUEST_OS ] || mkdir -p /tmp/quickemu/GUEST_OS
+    cd /tmp/quickemu/GUEST_OS
+    touch linux windows
+    read -e GUEST_OS
+    echo "linuxwindows" | grep "${GUEST_OS}" >/dev/null 2>&1
+    [ $? -eq 0 ] || echo "Guest OS type not supported."
+  done
+  cd - >/dev/null
+
+  # Boot type
+  local BOOT_TYPE
+  while [ "${BOOT_TYPE}" != "legacy" ] && [ "${BOOT_TYPE}" != "efi" ]; do
+    echo -n "Boot type (legacy|efi): "
+    # Really hacky tab completion
+    [ -d /tmp/quickemu/BOOT_TYPE ] || mkdir -p /tmp/quickemu/BOOT_TYPE
+    cd /tmp/quickemu/BOOT_TYPE
+    touch legacy efi
+    read -e BOOT_TYPE
+    echo "legacyuefi" | grep "${BOOT_TYPE}" >/dev/null 2>&1
+    [ $? -eq 0 ] || echo "Invalid boot type."
+  done
+  cd - >/dev/null
+  # Hide all the evidence
+  rm -rf /tmp/quickemu
+
+  # Virtual disk image
+  # Still pondering the cleanest way to handle disk image/ISO...
+  local DISK_IMG
+  local DISK_SIZE
+  DISK_IMG=${VM// /}
+  DISK_IMG=${DISK_IMG//.conf/}.qcow2
+  #while [ -z "${DISK_IMG}" ]; do
+  #  echo -n "Virtual hard disk image: "
+  #  read -e DISK_IMG
+    if [ -f "${DISK_IMG}" ]; then
+      echo "  Existing disk image found."
+      local DISK_CURR_SIZE=$(stat -c%s "${DISK_IMG}")
+      [ ${DISK_CURR_SIZE} -le ${DISK_MIN_SIZE} ] || local DISK_IMG_EXISTS=1
+    elif [ -z "${DISK_IMG}" ]; then
+      true
+    else
+  #    echo "  No existing disk image found."
+  #    echo "  A new one will be created."
+      echo -n "Virtual hard disk size (default 64G): "
+      read DISK_SIZE
+      [ -z ${DISK_SIZE} ] && DISK_SIZE="64G"
+    fi
+  #done
+  DISK_IMG="$(cd "$(dirname "${DISK_IMG}")" && pwd)/$(basename "${DISK_IMG}")"
+
+  # ISO file
+  local ISO_FILE
+  if [ "${DISK_IMG_EXISTS}" != "1" ]; then
+    while [ -z "${ISO_FILE}" ]; do
+      echo -n "ISO file to boot: "
+      read -e ISO_FILE
+      if [ ! -f "${ISO_FILE}" ]; then
+        echo "ERROR! File \"${ISO_FILE}\" does not exist."
+        ISO_FILE=""
+      elif [ -z "${ISO_FILE}" ]; then
+        echo
+      fi
+    done
+  fi
+  [ -n "${ISO_FILE}" ] && ISO_FILE="$(cd "$(dirname "${ISO_FILE}")" && pwd)/$(basename "${ISO_FILE}")"
+  # </pondering>
+
+  # Generate the .conf file, make a .desktop launcher, and exit
+  local CONF_FILE="${VM}"
+  echo
+  echo "More settings can be configured in ${CONF_FILE}."
+
+  echo "# Configuration for \"${VMNAME_P}\" Quickemu VM" > ${CONF_FILE}
+  echo "vmname=\"${VMNAME_P}\"" >> ${CONF_FILE}
+  echo "guest_os=\"${GUEST_OS}\"" >> ${CONF_FILE}
+  echo "boot=\"${BOOT_TYPE}\"" >> ${CONF_FILE}
+  echo "iso=\"${ISO_FILE}\"" >> ${CONF_FILE}
+  echo "disk_img=\"${DISK_IMG}\"" >> ${CONF_FILE}
+  echo "disk=\"${DISK_SIZE}\"" >> ${CONF_FILE}
+  echo "ram=\"\"" >> ${CONF_FILE}
+  echo "cores=\"\"" >> ${CONF_FILE}
+  echo "xres=\"\"" >> ${CONF_FILE}
+  echo "yres=\"\"" >> ${CONF_FILE}
+  echo "hostname=\"\"" >> ${CONF_FILE}
+
+  echo "Launch the new VM with \"${VMNAME_P}\" from the menu or run:"
+  echo "  ${LAUNCHER} --vm \"${CONF_FILE}\""
+
+  export VMNAME_P
+  mk_desktop_file
+  exit 0
+}
+
 enable_usb_passthrough() {
   local DEVICE=""
   local USB_BUS=""
@@ -496,9 +606,17 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
     exit 1
   fi
 else
-  echo "ERROR! Virtual machine configuration not found."
-  usage
-  exit 1
+  echo "Virtual machine configuration not found."
+  echo -n "Make one now? [y/N]: "
+  read MK_CONF
+  [ -z ${MK_CONF} ] && MK_CONF=0
+  echo "yes" | grep -i "${MK_CONF}" >/dev/null && MK_CONF="1"
+  if [ ${MK_CONF} = 1 ]; then
+    mk_conf
+  else
+    usage
+    exit 1
+  fi
 fi
 
 if [ ${DELETE} -eq 1 ]; then
