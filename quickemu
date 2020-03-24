@@ -87,17 +87,22 @@ function get_port() {
 }
 
 # Automatically create .desktop launcher after VM's first successful(?) boot (WIP)
-# Uses "Pretty" name from .conf, otherwise falls back to "Ugly" name
+# Also called from mk_conf()
 function mk_desktop_file() {
   [ -z ${XDG_DATA_HOME} ] && local XDG_DATA_HOME=${HOME}/.local/share
+
+  # Uses "Pretty" name from .conf, otherwise falls back to "Ugly" name
   [ -z "${VMNAME_P}" ] && local VMNAME_P=${vmname}
   local VMNAME_U="$(echo ${VM} | rev | cut -d'/' -f1 | cut -d'.' -f2- | rev)"
-  local VMNAME_U=${VMNAME_U// /}
-  [ -z "${VMNAME_P}" ] && local VMNAME_P="${VMNAME_U}"
+  VMNAME_U=${VMNAME_U// /}
+  [ -z "${VMNAME_P}" ] && VMNAME_P="${VMNAME_U}"
+
   local DESKTOP_FILE="${XDG_DATA_HOME}/applications/${VMNAME_U}".desktop
+
   # Get absolute paths of LAUNCHER and VM for Exec=
   local LAUNCHER_ABSPTH="$(cd "${0%/*}" && pwd)/${LAUNCHER}"
   local VM_ABSPTH="$(cd "$(dirname "${VM}")" && pwd)/$(basename "${VM}")"
+
   if [ ! -f "${DESKTOP_FILE}" ] || [ "${FORCE_DESKTOP_FILE}" = "1" ]; then
     echo "[Desktop Entry]" > "${DESKTOP_FILE}"
     echo "Version=1.0" >> "${DESKTOP_FILE}"
@@ -153,7 +158,7 @@ function mk_conf() {
     [ $? -eq 0 ] || echo "Invalid boot type."
   done
   cd - >/dev/null
-  # Hide all the evidence
+  # Hide all the evidence and don't tell anyone.
   rm -rf /tmp/quickemu
 
   # Virtual disk image
@@ -220,6 +225,7 @@ function mk_conf() {
   echo "  ${LAUNCHER} --vm \"${CONF_FILE}\""
 
   export VMNAME_P
+  FORCE_DESKTOP_FILE="1"
   mk_desktop_file
   exit 0
 }
@@ -609,7 +615,7 @@ else
   echo "Virtual machine configuration not found."
   echo -n "Make one now? [y/N]: "
   read MK_CONF
-  [ -z ${MK_CONF} ] && MK_CONF=0
+  [ -z ${MK_CONF} ] && MK_CONF="0"
   echo "yes" | grep -i "${MK_CONF}" >/dev/null && MK_CONF="1"
   if [ ${MK_CONF} = 1 ]; then
     mk_conf
