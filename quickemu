@@ -363,58 +363,37 @@ function vm_boot() {
 
   enable_usb_passthrough
 
-  # Boot the iso image
+  # Set extra EFI options
   if [ "${boot}" == "efi" ] || [ "${boot}" == "uefi" ]; then
-    ${QEMU} \
-      -name "${VMNAME}",process="${VMNAME}" \
-      -enable-kvm -machine q35 ${GUEST_TWEAKS} \
-      ${CPU} -smp ${CORES_VM} \
-      -m ${RAM_VM} -device virtio-balloon \
-      -drive if=pflash,format=raw,readonly,file="${EFI_CODE}" \
-      -drive if=pflash,format=raw,file="${EFI_VARS}" \
-      -drive media=cdrom,index=0,file="${iso}" \
-      -drive media=cdrom,index=1,file="${driver_iso}" \
-      -drive if=none,id=drive0,cache=directsync,aio=native,format=${DISK_TYPE},file="${disk_img}" \
-      -device virtio-blk-pci,drive=drive0,scsi=off ${STATUS_QUO} \
-      ${VIDEO} -display ${OUTPUT},gl=${GL}${OUTPUT_EXTRA} \
-      -device qemu-xhci,id=xhci,p2=8,p3=8 -device usb-kbd,bus=xhci.0 -device usb-tablet,bus=xhci.0 ${USB_PASSTHROUGH} \
-      -device virtio-net,netdev=nic -netdev ${NET},id=nic \
-      -audiodev pa,id=pa,server=unix:${XDG_RUNTIME_DIR}/pulse/native,out.stream-name=${LAUNCHER}-${VMNAME},in.stream-name=${LAUNCHER}-${VMNAME} \
-      -device intel-hda -device hda-duplex,audiodev=pa,mixer=off \
-      -rtc base=localtime,clock=host \
-      -object rng-random,id=rng0,filename=/dev/urandom \
-      -device virtio-rng-pci,rng=rng0 \
-      -spice port=5930,disable-ticketing \
-      -device virtio-serial-pci \
-      -device virtserialport,chardev=spicechannel0,name=com.redhat.spice.0 \
-      -chardev spicevmc,id=spicechannel0,name=vdagent \
-      -serial mon:stdio \
-      "${@}"
-  else
-    ${QEMU} \
-      -name "${VMNAME}",process="${VMNAME}" \
-      -enable-kvm -machine q35 ${GUEST_TWEAKS} \
-      ${CPU} -smp ${CORES_VM} \
-      -m ${RAM_VM} -device virtio-balloon \
-      -drive media=cdrom,index=0,file="${iso}" \
-      -drive media=cdrom,index=1,file="${driver_iso}" \
-      -drive if=none,id=drive0,cache=directsync,aio=native,format=${DISK_TYPE},file="${disk_img}" \
-      -device virtio-blk-pci,drive=drive0,scsi=off ${STATUS_QUO} \
-      ${VIDEO} -display ${OUTPUT},gl=${GL}${OUTPUT_EXTRA} \
-      -device qemu-xhci,id=xhci,p2=8,p3=8 -device usb-kbd,bus=xhci.0 -device usb-tablet,bus=xhci.0 ${USB_PASSTHROUGH} \
-      -device virtio-net,netdev=nic -netdev ${NET},id=nic \
-      -audiodev pa,id=pa,server=unix:${XDG_RUNTIME_DIR}/pulse/native,out.stream-name=${LAUNCHER}-${VMNAME},in.stream-name=${LAUNCHER}-${VMNAME} \
-      -device intel-hda -device hda-duplex,audiodev=pa,mixer=off \
-      -rtc base=localtime,clock=host \
-      -object rng-random,id=rng0,filename=/dev/urandom \
-      -device virtio-rng-pci,rng=rng0 \
-      -spice port=5930,disable-ticketing \
-      -device virtio-serial-pci \
-      -device virtserialport,chardev=spicechannel0,name=com.redhat.spice.0 \
-      -chardev spicevmc,id=spicechannel0,name=vdagent \
-      -serial mon:stdio \
-      "${@}"
-   fi
+    local EFI_OPTS="-drive if=pflash,format=raw,readonly,file=${EFI_CODE}"
+    EFI_OPTS="${EFI_OPTS} -drive if=pflash,format=raw,file=${EFI_VARS}"
+  fi
+
+  # Boot the iso image
+  ${QEMU} \
+    -name "${VMNAME}",process="${VMNAME}" \
+    -enable-kvm -machine q35 ${GUEST_TWEAKS} \
+    ${CPU} -smp ${CORES_VM} \
+    -m ${RAM_VM} -device virtio-balloon \
+    ${EFI_OPTS} \
+    -drive media=cdrom,index=0,file="${iso}" \
+    -drive media=cdrom,index=1,file="${driver_iso}" \
+    -drive if=none,id=drive0,cache=directsync,aio=native,format=${DISK_TYPE},file="${disk_img}" \
+    -device virtio-blk-pci,drive=drive0,scsi=off ${STATUS_QUO} \
+    ${VIDEO} -display ${OUTPUT},gl=${GL}${OUTPUT_EXTRA} \
+    -device qemu-xhci,id=xhci,p2=8,p3=8 -device usb-kbd,bus=xhci.0 -device usb-tablet,bus=xhci.0 ${USB_PASSTHROUGH} \
+    -device virtio-net,netdev=nic -netdev ${NET},id=nic \
+    -audiodev pa,id=pa,server=unix:${XDG_RUNTIME_DIR}/pulse/native,out.stream-name=${LAUNCHER}-${VMNAME},in.stream-name=${LAUNCHER}-${VMNAME} \
+    -device intel-hda -device hda-duplex,audiodev=pa,mixer=off \
+    -rtc base=localtime,clock=host \
+    -object rng-random,id=rng0,filename=/dev/urandom \
+    -device virtio-rng-pci,rng=rng0 \
+    -spice port=5930,disable-ticketing \
+    -device virtio-serial-pci \
+    -device virtserialport,chardev=spicechannel0,name=com.redhat.spice.0 \
+    -chardev spicevmc,id=spicechannel0,name=vdagent \
+    -serial mon:stdio \
+    "${@}"
 }
 
 function usage() {
