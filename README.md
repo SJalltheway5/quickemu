@@ -4,9 +4,19 @@
   Quickemu
 </h1>
 
-<p align="center"><b>Simple shell script to "manage" Qemu virtual machines.</b></p>
-<div align="center"><img src=".github/screenshot.png" alt="Quickemu Screenshot" /></div>
+<p align="center"><b>Simple shell script to "manage" Qemu virtual machines</b></p>
+
 <p align="center">Made with 💝 for <img src="https://raw.githubusercontent.com/anythingcodes/slack-emoji-for-techies/gh-pages/emoji/tux.png" align="top" width="24" /></p>
+
+## TL;DR
+
+* Run:
+```
+./quickemu --vm /path/to/my_vm.conf
+```
+* If you create this .conf file beforehand, the VM will launch (see Usage).
+* If this .conf file does not exist, you will be prompted to interactively create it.
+* Launch the VM by running the same command again, or via the Applications menu.
 
 ## Introduction
 
@@ -16,7 +26,7 @@ main objective of the project is to enable quick testing of desktop Linux
 distributions where the virtual machines can be stored anywhere, such as
 external USB storage.
 
-Quickemu is opinionated and will attempt to *"do the right thing"* rather than
+Quickemu is supposed to be opinionated and attempt to *"do the right thing"* rather than
 expose rich configuration options. Quickemu is a frontend to the fully
 accelerated [qemu-virgil](https://snapcraft.io/qemu-virgil). See the video
 where I explain some of my motivations for creating this script.
@@ -32,7 +42,7 @@ git clone https://github.com/SJalltheway5/quickemu.git
 ```
 
 Install the `qemu-virgil` snap. You can find details about how to install snapd
-and `qemu-virgil`  on the [Snap Store page for qemu-virgil](https://snapcraft.io/qemu-virgil)
+and `qemu-virgil` on the [Snap Store page for qemu-virgil](https://snapcraft.io/qemu-virgil)
 
 ```bash
 snap install qemu-virgil --edge
@@ -45,7 +55,7 @@ snap connect qemu-virgil:removable-media
 ### Linux VM
 
   * Download a .iso image of a Linux distribution
-  * Create a VM configuration file; for example `ubuntu.conf`
+  * Create a VM configuration file; for example `focal-desktop-amd64.conf`
     * The **default** `guest_os` is `linux`, so this is optional for Linux VM configs.
     * The `boot` option enables Legacy BIOS (`legacy`) or EFI (`efi`) booting. `legacy` is the default.
 
@@ -156,7 +166,16 @@ You can also pass optional parameters
   --snapshot info         : Show disk/snapshot info.
   --status-quo            : Do not commit any changes to disk/snapshot.
 ```
+The following options may additionally be added to a VM's .conf file (see `example.conf`):
 
+```
+ram=""
+cores=""
+xres=""
+yres=""
+vmname=""
+hostname=""
+```
 ## TODO
 
   - [x] Make display configuration more robust
@@ -165,7 +184,6 @@ You can also pass optional parameters
   - [x] Improve snapshot management
   - [x] Create desktop launcher for a VM (work in progress)
   - [x] Interactively create a new .conf file (work in progress)
-  - [ ] Update README about aforementioned .conf file creation
   - [x] Fix Virgil 3D on EFI boot
   - [x] Get QEMU `-audiodev` working for audio input, something like:
   - [x] Add Windows support
