@@ -338,11 +338,9 @@ function vm_boot() {
 
   # Set the hostname of the VM
   local VM_HOSTNAME=${hostname}
-  if [ -z ${VM_HOSTNAME} ]; then
-    local VM_HOSTNAME="${VMNAME// /}"
-    local NET="user,hostname=${VM_HOSTNAME}"
-  fi
-
+  [ -z ${VM_HOSTNAME} ] && VM_HOSTNAME="${VMNAME// /}"
+  local NET="user,hostname=${VM_HOSTNAME}"
+  
   # If smbd is available, export $HOME to the guest via samba
   if [ -e "${VIRGIL_PATH}/usr/sbin/smbd" ]; then
       NET="${NET},smb=${HOME}"
