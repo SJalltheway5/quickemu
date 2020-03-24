@@ -88,8 +88,6 @@ function get_port() {
 
 # Automatically create .desktop launcher after VM's first successful(?) boot (WIP)
 # Uses "Pretty" name from .conf, otherwise falls back to "Ugly" name
-# TO DO: Implement force creation of .desktop launcher (FORCE_DESKTOP_FILE=1)
-#        Maybe --vm should have its own separate functions like --snapshot does?
 function mk_desktop_file() {
   [ -z ${XDG_DATA_HOME} ] && local XDG_DATA_HOME=${HOME}/.local/share
   [ -z "${VMNAME_P}" ] && local VMNAME_P=${vmname}
@@ -99,7 +97,7 @@ function mk_desktop_file() {
   local DESKTOP_FILE="${XDG_DATA_HOME}/applications/${VMNAME_U}".desktop
   # Get absolute paths of LAUNCHER and VM for Exec=
   local LAUNCHER_ABSPTH="$(cd "${0%/*}" && pwd)/${LAUNCHER}"
-  local VM_ABSPTH="$(cd "$(dirname "${VM}")" && pwd)/${VM}"
+  local VM_ABSPTH="$(cd "$(dirname "${VM}")" && pwd)/$(basename "${VM}")"
   if [ ! -f "${DESKTOP_FILE}" ] || [ "${FORCE_DESKTOP_FILE}" = "1" ]; then
     echo "[Desktop Entry]" > "${DESKTOP_FILE}"
     echo "Version=1.0" >> "${DESKTOP_FILE}"
