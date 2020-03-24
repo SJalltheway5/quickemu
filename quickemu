@@ -92,7 +92,7 @@ function get_port() {
 #        Maybe --vm should have its own separate functions like --snapshot does?
 function mk_desktop_file() {
   [ -z ${XDG_DATA_HOME} ] && local XDG_DATA_HOME=${HOME}/.local/share
-  local VMNAME_P=${vmname}
+  [ -z "${VMNAME_P}" ] && local VMNAME_P=${vmname}
   local VMNAME_U="$(echo ${VM} | rev | cut -d'/' -f1 | cut -d'.' -f2- | rev)"
   local VMNAME_U=${VMNAME_U// /}
   [ -z "${VMNAME_P}" ] && local VMNAME_P="${VMNAME_U}"
@@ -254,11 +254,6 @@ function vm_boot() {
       fi
     fi
   fi
-
-  # Grab the file extension from the disk image to allow more than qcow2.
-  # ( Probably should limit this from allowing ANY file extension.
-  # Maybe limit to a list of ones that qemu accepts? )
-  local DISK_TYPE=$(echo "${disk_img}" | rev | cut -d'.' -f1 | rev)
 
   # Has the status quo been requested?
   if [ "${STATUS_QUO}" == "-snapshot" ] &&  [ -z "${iso}" ]; then
@@ -438,6 +433,7 @@ function usage() {
   echo "  --snapshot delete <tag> : Delete a snapshot."
   echo "  --snapshot info         : Show disk/snapshot info."
   echo "  --status-quo            : Do not commit any changes to disk/snapshot."
+  echo
 }
 
 # Lowercase variables are used in the VM config file only
@@ -468,6 +464,11 @@ readonly DISK_MIN_SIZE=$((197632 * 8))
 readonly QEMU="/snap/bin/qemu-virgil"
 readonly QEMU_IMG="/snap/bin/qemu-virgil.qemu-img"
 readonly VIRGIL_PATH="/snap/qemu-virgil/current"
+
+if [ -z ${1} ]; then
+  usage
+  exit 1
+fi
 
 while [ $# -gt 0 ]; do
   case "${1}" in
@@ -508,7 +509,8 @@ done
 # Check we have qemu-virgil available
 if [ ! -e "${QEMU}" ] && [ ! -e "${QEMU_IMG}" ]; then
   echo "ERROR! qemu-virgil not found. Please install the qemu-virgil snap."
-  echo "       https://snapcraft.io/qemu-virgil"
+  echo "       https://snapcraft.io/qemu-virgil or run:"
+  echo "       snap install qemu-virgil"
   exit 1
 fi
 
@@ -552,5 +554,14 @@ if [ -n "${SNAPSHOT_ACTION}" ]; then
       exit 1;;
   esac
 fi
+
+# Allow all disk image formats supported by qemu.
+  DISK_TYPE=$(echo "${disk_img}" | rev | cut -d'.' -f1 | rev)
+  DISK_TYPES="bochs,cloop,cow,dmg,nbd,parallels,qcow2,qed,raw,vdi,vhdx,vmdk,vvfat"
+  echo ${DISK_TYPES} | grep ${DISK_TYPE} >/dev/null
+  if [ $? -gt 0 ]; then
+    echo "ERROR! Unsupported disk image type."
+    exit 1
+  fi
 
 vm_boot && mk_desktop_file
