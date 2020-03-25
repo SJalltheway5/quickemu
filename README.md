@@ -10,12 +10,10 @@
 
 ## TL;DR
 
-* Run:
-```
-./quickemu --vm /path/to/my_vm.conf
-```
-* If you create this .conf file beforehand, the VM will launch (see Usage).
-* If this .conf file does not exist, you will be prompted to interactively create it.
+* Run: `./quickemu --vm /path/to/my_vm.conf`
+* If the `qemu-virgil` snap is not installed, you will be given simple instructions to install it.
+* If you create this .conf file beforehand, the VM will launch (see `example.conf`).
+* If this `.conf` file does not exist, you will be prompted to interactively create it.
 * Launch the VM by running the same command again, or via the Applications menu.
 
 ## Introduction
