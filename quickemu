@@ -92,18 +92,20 @@ function mk_desktop_file() {
   [ -z ${XDG_DATA_HOME} ] && local XDG_DATA_HOME=${HOME}/.local/share
 
   # Uses "Pretty" name from .conf, otherwise falls back to "Ugly" name
-  [ -z "${VMNAME_P}" ] && local VMNAME_P=${vmname}
+  # "Ugly" name
   local VMNAME_U="$(echo ${VM} | rev | cut -d'/' -f1 | cut -d'.' -f2- | rev)"
   VMNAME_U=${VMNAME_U// /}
+  # "Pretty" name
+  local VMNAME_P
+  [ -z "${VMNAME_P}" ] && VMNAME_P="${vmname}"
   [ -z "${VMNAME_P}" ] && VMNAME_P="${VMNAME_U}"
 
   local DESKTOP_FILE="${XDG_DATA_HOME}/applications/${VMNAME_U}".desktop
 
-  # Get absolute paths of LAUNCHER and VM for Exec=
-  local LAUNCHER_ABSPTH="$(cd "${0%/*}" && pwd)/${LAUNCHER}"
-  local VM_ABSPTH="$(cd "$(dirname "${VM}")" && pwd)/$(basename "${VM}")"
-
   if [ ! -f "${DESKTOP_FILE}" ] || [ "${FORCE_DESKTOP_FILE}" = "1" ]; then
+    # Get absolute paths of LAUNCHER and VM for Exec=
+    local LAUNCHER_ABSPTH="$(cd "${0%/*}" && pwd)/${LAUNCHER}"
+    local VM_ABSPTH="$(cd "$(dirname "${VM}")" && pwd)/$(basename "${VM}")"
     echo "[Desktop Entry]" > "${DESKTOP_FILE}"
     echo "Version=1.0" >> "${DESKTOP_FILE}"
     echo "Type=Application" >> "${DESKTOP_FILE}"
@@ -120,8 +122,6 @@ function mk_desktop_file() {
 }
 
 # Interactively create new .conf if VM doesn't already exist (WIP)
-# TODO: Better tab completion?
-#       Clean this crap up.
 function mk_conf() {
   echo "  Ctrl-C to abort"
   echo
@@ -133,9 +133,10 @@ function mk_conf() {
 
   # Guest OS type
   local GUEST_OS
+  local GUEST_OS_TAB="/tmp/quickemu/GUEST_OS"
   # Really hacky tab completion
-  [ -d /tmp/quickemu/GUEST_OS ] || mkdir -p /tmp/quickemu/GUEST_OS
-  cd /tmp/quickemu/GUEST_OS
+  [ -d ${GUEST_OS_TAB} ] || mkdir -p ${GUEST_OS_TAB}
+  cd ${GUEST_OS_TAB}
   touch linux windows
   while [ "${GUEST_OS}" != "linux" ] && [ "${GUEST_OS}" != "windows" ]; do
     echo -n "Guest OS type [linux|windows]: "
@@ -152,9 +153,10 @@ function mk_conf() {
 
   # Boot type
   local BOOT_TYPE
+  local BOOT_TYPE_TAB="/tmp/quickemu/BOOT_TYPE"
   # Really hacky tab completion
-  [ -d /tmp/quickemu/BOOT_TYPE ] || mkdir -p /tmp/quickemu/BOOT_TYPE
-  cd /tmp/quickemu/BOOT_TYPE
+  [ -d ${BOOT_TYPE_TAB} ] || mkdir -p ${BOOT_TYPE_TAB}
+  cd ${BOOT_TYPE_TAB}
   touch legacy efi
   while [ "${BOOT_TYPE}" != "legacy" ] && [ "${BOOT_TYPE}" != "efi" ]; do
     echo -n "Boot type [legacy|efi]: "
@@ -173,27 +175,22 @@ function mk_conf() {
 
   # Virtual disk image
   # Still pondering the cleanest way to handle disk image/ISO...
+  # I guess this is okay, till it isn't.
   local DISK_IMG
   local DISK_SIZE
   DISK_IMG=${VM// /}
   DISK_IMG=${DISK_IMG//.conf/}.qcow2
-  #while [ -z "${DISK_IMG}" ]; do
-  #  echo -n "Virtual hard disk image: "
-  #  read -e DISK_IMG
-    if [ -f "${DISK_IMG}" ]; then
-      echo "  Existing disk image found."
-      local DISK_CURR_SIZE=$(stat -c%s "${DISK_IMG}")
-      [ ${DISK_CURR_SIZE} -le ${DISK_MIN_SIZE} ] || local DISK_IMG_EXISTS=1
-    elif [ -z "${DISK_IMG}" ]; then
-      true
-    else
-  #    echo "  No existing disk image found."
-  #    echo "  A new one will be created."
-      echo -n "Virtual hard disk size (default 64G): "
-      read DISK_SIZE
-      [ -z ${DISK_SIZE} ] && DISK_SIZE="64G"
-    fi
-  #done
+  if [ -f "${DISK_IMG}" ]; then
+    echo "  Existing disk image found."
+    local DISK_CURR_SIZE=$(stat -c%s "${DISK_IMG}")
+    [ ${DISK_CURR_SIZE} -le ${DISK_MIN_SIZE} ] || local DISK_IMG_EXISTS=1
+  elif [ -z "${DISK_IMG}" ]; then
+    true
+  else
+    echo -n "Virtual hard disk size [default 64G]: "
+    read DISK_SIZE
+    [ -z ${DISK_SIZE} ] && DISK_SIZE="64G"
+  fi
   DISK_IMG="$(cd "$(dirname "${DISK_IMG}")" && pwd)/$(basename "${DISK_IMG}")"
 
   # ISO file
@@ -208,15 +205,16 @@ function mk_conf() {
         ISO_FILE="$(echo "${ISO_FILE}" | cut -c 2-)"
         ISO_FILE="$(echo "${ISO_FILE}" | rev | cut -c 2- | rev)"
       fi
-      if [ ! -f "${ISO_FILE}" ]; then
+      if [ -z "${ISO_FILE}" ]; then
+        echo
+      elif [ ! -f "${ISO_FILE}" ]; then
         echo "ERROR! File \"${ISO_FILE}\" does not exist."
         ISO_FILE=""
-      elif [ -z "${ISO_FILE}" ]; then
-        echo
       fi
     done
   fi
-  [ -n "${ISO_FILE}" ] && ISO_FILE="$(cd "$(dirname "${ISO_FILE}")" && pwd)/$(basename "${ISO_FILE}")"
+  [ -n "${ISO_FILE}" ] && \
+    ISO_FILE="$(cd "$(dirname "${ISO_FILE}")" && pwd)/$(basename "${ISO_FILE}")"
   # </pondering>
 
   # Generate the .conf file, make a .desktop launcher, and exit
@@ -268,7 +266,7 @@ enable_usb_passthrough() {
       USB_NAME=$(lsusb -d ${VENDOR_ID}:${PRODUCT_ID} | cut -d' ' -f7-)
       echo "              - ${USB_NAME}"
       USB_PASSTHROUGH="${USB_PASSTHROUGH} -usb -device usb-host,vendorid=0x${VENDOR_ID},productid=0x${PRODUCT_ID}"
-      
+
       if [ ! -w /dev/bus/usb/${USB_BUS}/${USB_DEV} ]; then
         local EXEC_SCRIPT=1
         echo "chown root:${USER} /dev/bus/usb/${USB_BUS}/${USB_DEV}" >> "${TEMP_SCRIPT}"
@@ -472,7 +470,7 @@ function vm_boot() {
   local VM_HOSTNAME=${hostname}
   [ -z ${VM_HOSTNAME} ] && VM_HOSTNAME="${VMNAME// /}"
   local NET="user,hostname=${VM_HOSTNAME}"
-  
+
   # If smbd is available, export $HOME to the guest via samba
   if [ -e "${VIRGIL_PATH}/usr/sbin/smbd" ]; then
       NET="${NET},smb=${HOME}"
