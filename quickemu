@@ -86,7 +86,7 @@ function get_port() {
     done
 }
 
-# Automatically create .desktop launcher after VM's first successful(?) boot (WIP)
+# Automatically create .desktop launcher after VM's first successful boot (WIP)
 # Also called from mk_conf()
 function mk_desktop_file() {
   [ -z ${XDG_DATA_HOME} ] && local XDG_DATA_HOME=${HOME}/.local/share
@@ -133,29 +133,39 @@ function mk_conf() {
 
   # Guest OS type
   local GUEST_OS
+  # Really hacky tab completion
+  [ -d /tmp/quickemu/GUEST_OS ] || mkdir -p /tmp/quickemu/GUEST_OS
+  cd /tmp/quickemu/GUEST_OS
+  touch linux windows
   while [ "${GUEST_OS}" != "linux" ] && [ "${GUEST_OS}" != "windows" ]; do
-    echo -n "Guest OS type (linux|windows): "
-    # Really hacky tab completion
-    [ -d /tmp/quickemu/GUEST_OS ] || mkdir -p /tmp/quickemu/GUEST_OS
-    cd /tmp/quickemu/GUEST_OS
-    touch linux windows
+    echo -n "Guest OS type [linux|windows]: "
     read -e GUEST_OS
     echo "linuxwindows" | grep "${GUEST_OS}" >/dev/null 2>&1
-    [ $? -eq 0 ] || echo "Guest OS type not supported."
+    if [ $? -ne 0 ]; then
+      echo "Guest OS not supported."
+    elif [ -z "${GUEST_OS}" ]; then
+      GUEST_OS="linux"
+      echo "Defaulting to ${GUEST_OS}"
+    fi
   done
   cd - >/dev/null
 
   # Boot type
   local BOOT_TYPE
+  # Really hacky tab completion
+  [ -d /tmp/quickemu/BOOT_TYPE ] || mkdir -p /tmp/quickemu/BOOT_TYPE
+  cd /tmp/quickemu/BOOT_TYPE
+  touch legacy efi
   while [ "${BOOT_TYPE}" != "legacy" ] && [ "${BOOT_TYPE}" != "efi" ]; do
-    echo -n "Boot type (legacy|efi): "
-    # Really hacky tab completion
-    [ -d /tmp/quickemu/BOOT_TYPE ] || mkdir -p /tmp/quickemu/BOOT_TYPE
-    cd /tmp/quickemu/BOOT_TYPE
-    touch legacy efi
+    echo -n "Boot type [legacy|efi]: "
     read -e BOOT_TYPE
     echo "legacyuefi" | grep "${BOOT_TYPE}" >/dev/null 2>&1
-    [ $? -eq 0 ] || echo "Invalid boot type."
+    if [ $? -ne 0 ]; then
+      echo "Invalid boot type."
+    elif [ -z "${BOOT_TYPE}" ]; then
+      BOOT_TYPE="legacy"
+      echo "Defaulting to ${BOOT_TYPE}"
+    fi
   done
   cd - >/dev/null
   # Hide all the evidence and don't tell anyone.
@@ -192,6 +202,12 @@ function mk_conf() {
     while [ -z "${ISO_FILE}" ]; do
       echo -n "ISO file to boot: "
       read -e ISO_FILE
+      # Check for and remove '' to allow drag-and-drop into some terminal emulators
+      if [ "$(echo "${ISO_FILE}" | cut -c -1)" == "'" ] && \
+        [ "$(echo "${ISO_FILE}" | rev | cut -c -1)" == "'" ]; then
+        ISO_FILE="$(echo "${ISO_FILE}" | cut -c 2-)"
+        ISO_FILE="$(echo "${ISO_FILE}" | rev | cut -c 2- | rev)"
+      fi
       if [ ! -f "${ISO_FILE}" ]; then
         echo "ERROR! File \"${ISO_FILE}\" does not exist."
         ISO_FILE=""
@@ -599,8 +615,14 @@ done
 
 # Check we have qemu-virgil available
 if [ ! -e "${QEMU}" ] && [ ! -e "${QEMU_IMG}" ]; then
-  echo "ERROR! qemu-virgil not found. Please install the qemu-virgil snap."
-  echo "       https://snapcraft.io/qemu-virgil"
+  echo "ERROR! qemu-virgil not found. Please install the qemu-virgil snap:"
+  echo
+  echo "  snap install qemu-virgil --edge"
+  echo "  snap connect qemu-virgil:kvm"
+  echo "  snap connect qemu-virgil:removable-media"
+  echo
+  echo "More information: https://snapcraft.io/qemu-virgil"
+  echo
   exit 1
 fi
 
