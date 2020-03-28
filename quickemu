@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 export LC_ALL=C
+[ -z ${XDG_DATA_HOME} ] && XDG_DATA_HOME=${HOME}/.local/share
 
 function disk_delete() {
   if [ -e "${disk_img}" ]; then
@@ -89,13 +90,9 @@ function get_port() {
 # Automatically create .desktop launcher after VM's first successful boot (WIP)
 # Also called from mk_conf()
 function mk_desktop_file() {
-  [ -z ${XDG_DATA_HOME} ] && local XDG_DATA_HOME=${HOME}/.local/share
-
   # Uses "Pretty" name from .conf, otherwise falls back to "Ugly" name
-  # "Ugly" name
   local VMNAME_U="$(echo ${VM} | rev | cut -d'/' -f1 | cut -d'.' -f2- | rev)"
   VMNAME_U=${VMNAME_U// /}
-  # "Pretty" name
   local VMNAME_P
   [ -z "${VMNAME_P}" ] && VMNAME_P="${vmname}"
   [ -z "${VMNAME_P}" ] && VMNAME_P="${VMNAME_U}"
@@ -150,6 +147,31 @@ function mk_conf() {
     fi
   done
   cd - >/dev/null
+  local WIN_VIRTIO_ISO
+  if [ "${GUEST_OS}" == "windows" ]; then
+    echo "Running Windows as a guest OS requires VirtIO drivers."
+    echo "A .iso file can be found here:"
+    echo
+    echo "https://docs.fedoraproject.org/en-US/quick-docs/creating-windows-virtual-machines-using-virtio-drivers/index.html#virtio-win-direct-downloads"
+    echo
+    while [ -z "${WIN_VIRTIO_ISO}" ]; do
+      echo -n "Windows VirtIO drivers ISO: "
+      read -e WIN_VIRTIO_ISO
+      WIN_VIRTIO_ISO="${WIN_VIRTIO_ISO//'~'/$HOME}"
+      # Check for and remove '' to allow drag-and-drop into some terminal emulators
+      if [ "$(echo "${WIN_VIRTIO_ISO}" | cut -c -1)" == "'" ] && \
+        [ "$(echo "${WIN_VIRTIO_ISO}" | rev | cut -c -1)" == "'" ]; then
+        WIN_VIRTIO_ISO="$(echo "${WIN_VIRTIO_ISO}" | cut -c 2-)"
+        WIN_VIRTIO_ISO="$(echo "${WIN_VIRTIO_ISO}" | rev | cut -c 2- | rev)"
+      fi
+      if [ -z "${WIN_VIRTIO_ISO}" ]; then
+        echo
+      elif [ ! -f "${WIN_VIRTIO_ISO}" ]; then
+        echo "ERROR! File \"${WIN_VIRTIO_ISO}\" does not exist."
+        WIN_VIRTIO_ISO=""
+      fi
+    done
+  fi
 
   # Boot type
   local BOOT_TYPE
@@ -189,7 +211,11 @@ function mk_conf() {
   else
     echo -n "Virtual hard disk size [default 64G]: "
     read DISK_SIZE
-    [ -z ${DISK_SIZE} ] && DISK_SIZE="64G"
+    if [ -z ${DISK_SIZE} ]; then
+      # Why is this printing on a new line?
+      #echo "Defaulting to 64G"
+      DISK_SIZE="64G"
+    fi
   fi
   DISK_IMG="$(cd "$(dirname "${DISK_IMG}")" && pwd)/$(basename "${DISK_IMG}")"
 
@@ -199,6 +225,7 @@ function mk_conf() {
     while [ -z "${ISO_FILE}" ]; do
       echo -n "ISO file to boot: "
       read -e ISO_FILE
+      ISO_FILE="${ISO_FILE//'~'/$HOME}"
       # Check for and remove '' to allow drag-and-drop into some terminal emulators
       if [ "$(echo "${ISO_FILE}" | cut -c -1)" == "'" ] && \
         [ "$(echo "${ISO_FILE}" | rev | cut -c -1)" == "'" ]; then
@@ -218,25 +245,24 @@ function mk_conf() {
   # </pondering>
 
   # Generate the .conf file, make a .desktop launcher, and exit
-  local CONF_FILE="${VM}"
+  #local CONF_FILE="${VM}"
   echo
-  echo "More settings can be configured in ${CONF_FILE}."
+  echo "More settings can be configured in ${VM}."
 
-  echo "# Configuration for \"${VMNAME_P}\" Quickemu VM" > ${CONF_FILE}
-  echo "vmname=\"${VMNAME_P}\"" >> ${CONF_FILE}
-  echo "guest_os=\"${GUEST_OS}\"" >> ${CONF_FILE}
-  echo "boot=\"${BOOT_TYPE}\"" >> ${CONF_FILE}
-  echo "iso=\"${ISO_FILE}\"" >> ${CONF_FILE}
-  echo "disk_img=\"${DISK_IMG}\"" >> ${CONF_FILE}
-  echo "disk=\"${DISK_SIZE}\"" >> ${CONF_FILE}
-  echo "ram=\"\"" >> ${CONF_FILE}
-  echo "cores=\"\"" >> ${CONF_FILE}
-  echo "xres=\"\"" >> ${CONF_FILE}
-  echo "yres=\"\"" >> ${CONF_FILE}
-  echo "hostname=\"\"" >> ${CONF_FILE}
-
+  echo "# Configuration for \"${VMNAME_P}\" Quickemu VM" > ${VM}
+  echo "vmname=\"${VMNAME_P}\"" >> ${VM}
+  echo "guest_os=\"${GUEST_OS}\"" >> ${VM}
+  echo "boot=\"${BOOT_TYPE}\"" >> ${VM}
+  echo "iso=\"${ISO_FILE}\"" >> ${VM}
+  echo "disk_img=\"${DISK_IMG}\"" >> ${VM}
+  [ -z ${WIN_VIRTIO_ISO} ] || echo "driver_iso=\"${WIN_VIRTIO_ISO}\"" >> ${VM} 
+  echo "disk=\"${DISK_SIZE}\"" >> ${VM}
+  for i in ram cores xres yres hostname; do
+    echo "$i=\"\"" >> ${VM}
+  done
+  
   echo "Launch the new VM with \"${VMNAME_P}\" from the menu or run:"
-  echo "  ${LAUNCHER} --vm \"${CONF_FILE}\""
+  echo "  ${LAUNCHER} --vm \"${VM}\""
 
   export VMNAME_P
   FORCE_DESKTOP_FILE="1"
@@ -529,7 +555,7 @@ function vm_boot() {
 function usage() {
   echo
   echo "Usage"
-  echo "  ${LAUNCHER} --vm ubuntu.conf"
+  echo "  ${LAUNCHER} --vm my_vm.conf"
   echo
   echo "You can also pass optional parameters"
   echo "  --delete                : Delete the disk image."
@@ -624,6 +650,7 @@ if [ ! -e "${QEMU}" ] && [ ! -e "${QEMU_IMG}" ]; then
   exit 1
 fi
 
+# Prompt to create new .conf file
 if [ -n "${VM}" ] && [ -e "${VM}" ]; then
   source "${VM}"
   if [ -z "${disk_img}" ]; then
