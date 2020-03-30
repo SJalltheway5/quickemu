@@ -93,7 +93,7 @@ function mk_desktop_file() {
   # Uses "Pretty" name from .conf, otherwise falls back to "Ugly" name
   local VMNAME_U="$(echo ${VM} | rev | cut -d'/' -f1 | cut -d'.' -f2- | rev)"
   VMNAME_U=${VMNAME_U// /}
-  local VMNAME_P
+  local VMNAME_P="${VMNAME_P}"
   [ -z "${VMNAME_P}" ] && VMNAME_P="${vmname}"
   [ -z "${VMNAME_P}" ] && VMNAME_P="${VMNAME_U}"
 
@@ -155,7 +155,7 @@ function mk_conf() {
     echo "https://docs.fedoraproject.org/en-US/quick-docs/creating-windows-virtual-machines-using-virtio-drivers/index.html#virtio-win-direct-downloads"
     echo
     while [ -z "${WIN_VIRTIO_ISO}" ]; do
-      echo -n "Windows VirtIO drivers ISO: "
+      echo -n "VirtIO drivers ISO: "
       read -e WIN_VIRTIO_ISO
       WIN_VIRTIO_ISO="${WIN_VIRTIO_ISO//'~'/$HOME}"
       # Check for and remove '' to allow drag-and-drop into some terminal emulators
@@ -171,6 +171,7 @@ function mk_conf() {
         WIN_VIRTIO_ISO=""
       fi
     done
+    WIN_VIRTIO_ISO="$(cd "$(dirname "${WIN_VIRTIO_ISO}")" && pwd)/$(basename "${WIN_VIRTIO_ISO}")"
   fi
 
   # Boot type
