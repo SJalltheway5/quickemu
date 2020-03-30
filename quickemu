@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 export LC_ALL=C
-[ -z ${XDG_DATA_HOME} ] && XDG_DATA_HOME=${HOME}/.local/share
+[ -z ${XDG_DATA_HOME} ] && export XDG_DATA_HOME=${HOME}/.local/share
+CONFIG=${XDG_DATA_HOME}/quickemu
 
 function disk_delete() {
   if [ -e "${disk_img}" ]; then
@@ -99,10 +100,39 @@ function mk_desktop_file() {
 
   local DESKTOP_FILE="${XDG_DATA_HOME}/applications/${VMNAME_U}".desktop
 
+  ICON_SCRIPT="${0%/*}/icon.sh"
+  if [ -f "${ICON_SCRIPT}" ]; then
+    source "${ICON_SCRIPT}"
+  else
+    local ICON="application-default-icon"
+  fi
+  # Try to guess icon from VM name
+  local SUPPORTED_ICONS="ubuntu fedora"
+  for i in ${SUPPORTED_ICONS}; do
+    echo ${VMNAME_P} | grep -i ${i} >/dev/null 2>&1
+    [ $? -eq 0 ] && ICON=${i}
+  done
+
+  # Stupid Windows checks...
+  if [ -z ${ICON} ]; then
+    # Windows 10
+    echo ${VMNAME_P} | grep -i -e "win" | grep -i -e "10" >/dev/null 2>&1
+    [ $? -eq 0 ] && ICON="win10"
+    # Windows XP
+    echo ${VMNAME_P} | grep -i -e "win" | grep -i -e "xp" >/dev/null 2>&1
+    [ $? -eq 0 ] && ICON="application-default-icon" #ICON="winxp"
+  fi
+  case ${ICON} in
+    ubuntu) mk_icon_ubuntu;; 
+    fedora) mk_icon_fedora;;
+    win10) mk_icon_win10;;
+  esac
+
   if [ ! -f "${DESKTOP_FILE}" ] || [ "${FORCE_DESKTOP_FILE}" = "1" ]; then
     # Get absolute paths of LAUNCHER and VM for Exec=
     local LAUNCHER_ABSPTH="$(cd "${0%/*}" && pwd)/${LAUNCHER}"
     local VM_ABSPTH="$(cd "$(dirname "${VM}")" && pwd)/$(basename "${VM}")"
+
     echo "[Desktop Entry]" > "${DESKTOP_FILE}"
     echo "Version=1.0" >> "${DESKTOP_FILE}"
     echo "Type=Application" >> "${DESKTOP_FILE}"
@@ -111,8 +141,7 @@ function mk_desktop_file() {
     echo "Exec='${LAUNCHER_ABSPTH}' --vm '${VM_ABSPTH}'" >> "${DESKTOP_FILE}"
     # Category for this?
     echo "Categories=;" >> "${DESKTOP_FILE}"
-    # Need to sort out setting a proper icon
-    echo "Icon=application-default-icon" >> "${DESKTOP_FILE}"
+    echo "Icon=quickemu-${ICON}" >> "${DESKTOP_FILE}"
     echo "Terminal=false" >> "${DESKTOP_FILE}"
     echo "StartupNotify=false" >> "${DESKTOP_FILE}"
   fi
@@ -246,7 +275,6 @@ function mk_conf() {
   # </pondering>
 
   # Generate the .conf file, make a .desktop launcher, and exit
-  #local CONF_FILE="${VM}"
   echo
   echo "More settings can be configured in ${VM}."
 
