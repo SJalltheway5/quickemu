@@ -24,10 +24,9 @@ main objective of the project is to enable quick testing of desktop Linux
 distributions where the virtual machines can be stored anywhere, such as
 external USB storage.
 
-Quickemu is supposed to be opinionated and attempt to *"do the right thing"* rather than
-expose rich configuration options. Quickemu is a frontend to the fully
-accelerated [qemu-virgil](https://snapcraft.io/qemu-virgil). See the video
-where I explain some of my motivations for creating this script.
+Quickemu is opinionated and will attempt to *"do the right thing"* in terms of automatic
+configuration. It is a frontend to the fully accelerated [qemu-virgil](https://snapcraft.io/qemu-virgil).
+See the video where I explain some of my motivations for creating this script:
 
 [![Replace VirtualBox with Bash & QEMU](https://img.youtube.com/vi/AOTYWEgw0hI/0.jpg)](https://www.youtube.com/watch?v=AOTYWEgw0hI)
 
@@ -36,15 +35,16 @@ where I explain some of my motivations for creating this script.
 Clone this repository:
 
 ```
-git clone https://github.com/SJalltheway5/quickemu.git
+git clone --single-branch --branch=testing https://github.com/SJalltheway5/quickemu.git
 ```
 
 Install the `qemu-virgil` snap. You can find details about how to install snapd
 and `qemu-virgil` on the [Snap Store page for qemu-virgil](https://snapcraft.io/qemu-virgil)
 
-```bash
+```
 snap install qemu-virgil --edge
 snap connect qemu-virgil:kvm
+snap connect qemu-virgil:raw-usb
 snap connect qemu-virgil:removable-media
 ```
 
@@ -63,6 +63,7 @@ guest_os="linux"
 iso="/media/$USER/Quickemu/ubuntu/focal-desktop-amd64.iso"
 disk_img="/media/$USER/Quickemu/ubuntu/focal-desktop-amd64.qcow2"
 disk=128G
+usb_devices=("046d:082d" "046d:085e")
 ```
 
   * Use `quickemu` to start the virtual machine:
@@ -173,6 +174,7 @@ xres=""
 yres=""
 vmname=""
 hostname=""
+usb_devices=()
 ```
 ## TODO
 
@@ -185,3 +187,5 @@ hostname=""
   - [x] Fix Virgil 3D on EFI boot
   - [x] Get QEMU `-audiodev` working for audio input, something like:
   - [x] Add Windows support
+  - [ ] Add support for more guest OSes (e.g. macOS)
+  - [ ] Improve icon support a lot
