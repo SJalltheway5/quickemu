@@ -100,31 +100,27 @@ function mk_desktop_file() {
 
   local DESKTOP_FILE="${XDG_DATA_HOME}/applications/${VMNAME_U}".desktop
 
-  ICON_SCRIPT="${0%/*}/icon.sh"
-  if [ -f "${ICON_SCRIPT}" ]; then
-    source "${ICON_SCRIPT}"
-  else
-    local ICON="application-default-icon"
-  fi
+  local ICON_SCRIPT="${0%/*}/icon.sh"
+  [ -f "${ICON_SCRIPT}" ] && source "${ICON_SCRIPT}" || local ICON="application-default-icon"
+
   # Try to guess icon from VM name
   local SUPPORTED_ICONS="ubuntu fedora"
   for i in ${SUPPORTED_ICONS}; do
     echo ${VMNAME_P} | grep -i ${i} >/dev/null 2>&1
-    [ $? -eq 0 ] && ICON=${i}
+    [ ${?} -eq 0 ] && ICON=${i}
+  done
+  for w in xp 7 8 10; do
+    while [ -z ${ICON} ]; do
+      echo ${VMNAME_P} | grep -i -e "win" | grep -i -e "${w}" >/dev/null 2>&1
+      [ ${?} -eq 0 ] && ICON="win${w}"
+      [ "${ICON}" == "win" ] && ICON=""
+    done
   done
 
-  # Stupid Windows checks...
-  if [ -z ${ICON} ]; then
-    # Windows 10
-    echo ${VMNAME_P} | grep -i -e "win" | grep -i -e "10" >/dev/null 2>&1
-    [ $? -eq 0 ] && ICON="win10"
-    # Windows XP
-    echo ${VMNAME_P} | grep -i -e "win" | grep -i -e "xp" >/dev/null 2>&1
-    [ $? -eq 0 ] && ICON="application-default-icon" #ICON="winxp"
-  fi
   case ${ICON} in
     ubuntu) mk_icon_ubuntu;; 
     fedora) mk_icon_fedora;;
+    winxp|win7|win8) ICON="application-default-icon";; 
     win10) mk_icon_win10;;
   esac
 
@@ -141,7 +137,8 @@ function mk_desktop_file() {
     echo "Exec='${LAUNCHER_ABSPTH}' --vm '${VM_ABSPTH}'" >> "${DESKTOP_FILE}"
     # Category for this?
     echo "Categories=;" >> "${DESKTOP_FILE}"
-    echo "Icon=quickemu-${ICON}" >> "${DESKTOP_FILE}"
+    [ "${ICON}" == "application-default-icon" ] || ICON="quickemu-${ICON}"
+    echo "Icon=${ICON}" >> "${DESKTOP_FILE}"
     echo "Terminal=false" >> "${DESKTOP_FILE}"
     echo "StartupNotify=false" >> "${DESKTOP_FILE}"
   fi
@@ -188,11 +185,9 @@ function mk_conf() {
       read -e WIN_VIRTIO_ISO
       WIN_VIRTIO_ISO="${WIN_VIRTIO_ISO//'~'/$HOME}"
       # Check for and remove '' to allow drag-and-drop into some terminal emulators
-      if [ "$(echo "${WIN_VIRTIO_ISO}" | cut -c -1)" == "'" ] && \
-        [ "$(echo "${WIN_VIRTIO_ISO}" | rev | cut -c -1)" == "'" ]; then
-        WIN_VIRTIO_ISO="$(echo "${WIN_VIRTIO_ISO}" | cut -c 2-)"
-        WIN_VIRTIO_ISO="$(echo "${WIN_VIRTIO_ISO}" | rev | cut -c 2- | rev)"
-      fi
+      [ "$(echo "${WIN_VIRTIO_ISO}" | cut -c -1)" == "'" ] && \
+        [ "$(echo "${WIN_VIRTIO_ISO}" | rev | cut -c -1)" == "'" ] && \
+        WIN_VIRTIO_ISO="$(echo "${WIN_VIRTIO_ISO}" | cut -c 2- | rev | cut -c 2- | rev)"
       if [ -z "${WIN_VIRTIO_ISO}" ]; then
         echo
       elif [ ! -f "${WIN_VIRTIO_ISO}" ]; then
@@ -226,11 +221,9 @@ function mk_conf() {
   rm -rf /tmp/quickemu
 
   # Virtual disk image
-  # Still pondering the cleanest way to handle disk image/ISO...
-  # I guess this is okay, till it isn't.
   local DISK_IMG
   local DISK_SIZE
-  DISK_IMG=${VM// /}
+  DISK_IMG=${VM// /}  # This might become problematic
   DISK_IMG=${DISK_IMG//.conf/}.qcow2
   if [ -f "${DISK_IMG}" ]; then
     echo "  Existing disk image found."
@@ -242,12 +235,12 @@ function mk_conf() {
     echo -n "Virtual hard disk size [default 64G]: "
     read DISK_SIZE
     if [ -z ${DISK_SIZE} ]; then
-      # Why is this printing on a new line?
-      #echo "Defaulting to 64G"
+      echo "Defaulting to 64G"  # Why is this printing on a new line?
       DISK_SIZE="64G"
     fi
   fi
   DISK_IMG="$(cd "$(dirname "${DISK_IMG}")" && pwd)/$(basename "${DISK_IMG}")"
+  # ^^ Should have some error checking for DISK_SIZE ^^
 
   # ISO file
   local ISO_FILE
@@ -257,11 +250,9 @@ function mk_conf() {
       read -e ISO_FILE
       ISO_FILE="${ISO_FILE//'~'/$HOME}"
       # Check for and remove '' to allow drag-and-drop into some terminal emulators
-      if [ "$(echo "${ISO_FILE}" | cut -c -1)" == "'" ] && \
-        [ "$(echo "${ISO_FILE}" | rev | cut -c -1)" == "'" ]; then
-        ISO_FILE="$(echo "${ISO_FILE}" | cut -c 2-)"
-        ISO_FILE="$(echo "${ISO_FILE}" | rev | cut -c 2- | rev)"
-      fi
+      [ "$(echo "${ISO_FILE}" | cut -c -1)" == "'" ] && \
+        [ "$(echo "${ISO_FILE}" | rev | cut -c -1)" == "'" ] && \
+        ISO_FILE="$(echo "${ISO_FILE}" | cut -c 2- | rev | cut -c 2- | rev)"
       if [ -z "${ISO_FILE}" ]; then
         echo
       elif [ ! -f "${ISO_FILE}" ]; then
@@ -272,12 +263,9 @@ function mk_conf() {
   fi
   [ -n "${ISO_FILE}" ] && \
     ISO_FILE="$(cd "$(dirname "${ISO_FILE}")" && pwd)/$(basename "${ISO_FILE}")"
-  # </pondering>
 
   # Generate the .conf file, make a .desktop launcher, and exit
   echo
-  echo "More settings can be configured in ${VM}."
-
   echo "# Configuration for \"${VMNAME_P}\" Quickemu VM" > ${VM}
   echo "vmname=\"${VMNAME_P}\"" >> ${VM}
   echo "guest_os=\"${GUEST_OS}\"" >> ${VM}
@@ -287,9 +275,10 @@ function mk_conf() {
   [ -z ${WIN_VIRTIO_ISO} ] || echo "driver_iso=\"${WIN_VIRTIO_ISO}\"" >> ${VM} 
   echo "disk=\"${DISK_SIZE}\"" >> ${VM}
   for i in ram cores xres yres hostname; do
-    echo "$i=\"\"" >> ${VM}
+    echo "${i}=\"\"" >> ${VM}
   done
-  
+  echo "usb_devices=()" >> ${VM}
+  echo "More settings can be configured in ${VM}."
   echo "Launch the new VM with \"${VMNAME_P}\" from the menu or run:"
   echo "  ${LAUNCHER} --vm \"${VM}\""
 
@@ -386,6 +375,7 @@ function vm_boot() {
     linux)
       DISPLAY_DEVICE="virtio-vga"
       ;;
+    macos) echo "Oh no you don't."; exit 1;;
     windows)
       CPU="${CPU},hv_time"
       GUEST_TWEAKS="-no-hpet"
@@ -393,7 +383,7 @@ function vm_boot() {
       ;;
     *)
       echo "ERROR! Unrecognised guest OS: ${guest_os}"
-      exit
+      exit 1
       ;;
   esac
   echo " - Guest:    ${guest_os^} optimised"
@@ -431,8 +421,7 @@ function vm_boot() {
           exit 1
         fi
       else
-        # If there is a disk image, that appears to have an install
-        # then do not boot from the iso
+        # Boot from disk image if there is an installed OS
         iso=""
       fi
     fi
@@ -467,7 +456,6 @@ function vm_boot() {
   if [ -z ${RAM_VM} ]; then
     local RAM_VM="2G"
     local RAM_HOST=$(free --mega -h | grep Mem | cut -d':' -f2 | cut -d'G' -f1 | sed 's/ //g')
-    #Round up - https://github.com/wimpysworld/quickemu/issues/11
     RAM_HOST=$(printf '%.*f\n' 0 ${RAM_HOST})
     if [ ${RAM_HOST} -ge 64 ]; then
       RAM_VM="4G"
@@ -549,7 +537,7 @@ function vm_boot() {
   enable_usb_passthrough
 
   # Set extra EFI options
-  if [ "${boot}" == "efi" ] || [ "${boot}" == "uefi" ]; then
+  if [ "${boot}" == "efi" ]; then
     local EFI_OPTS="-drive if=pflash,format=raw,readonly,file=${EFI_CODE}"
     EFI_OPTS="${EFI_OPTS} -drive if=pflash,format=raw,file=${EFI_VARS}"
   fi
@@ -583,16 +571,16 @@ function vm_boot() {
 
 function usage() {
   echo
-  echo "Usage"
+  echo "Usage:"
   echo "  ${LAUNCHER} --vm my_vm.conf"
   echo
-  echo "You can also pass optional parameters"
-  echo "  --delete                : Delete the disk image."
-  echo "  --snapshot apply <tag>  : Apply/restore a snapshot."
-  echo "  --snapshot create <tag> : Create a snapshot."
-  echo "  --snapshot delete <tag> : Delete a snapshot."
-  echo "  --snapshot info         : Show disk/snapshot info."
-  echo "  --status-quo            : Do not commit any changes to disk/snapshot."
+  echo "You can also pass optional parameters:"
+  echo "  --delete                  Delete the disk image."
+  echo "  --snapshot apply <tag>    Apply/restore a snapshot."
+  echo "  --snapshot create <tag>   Create a snapshot."
+  echo "  --snapshot delete <tag>   Delete a snapshot."
+  echo "  --snapshot info           Show disk/snapshot info."
+  echo "  --status-quo              Do not commit any changes to disk/snapshot."
   echo
 }
 
@@ -672,6 +660,7 @@ if [ ! -e "${QEMU}" ] && [ ! -e "${QEMU_IMG}" ]; then
   echo
   echo "  snap install qemu-virgil --edge"
   echo "  snap connect qemu-virgil:kvm"
+  echo "  snap connect qemu-virgil:usb-raw"
   echo "  snap connect qemu-virgil:removable-media"
   echo
   echo "More information: https://snapcraft.io/qemu-virgil"
